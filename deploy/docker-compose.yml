@@ -1,0 +1,56 @@
+name: scadaguard
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: scadaguard
+      POSTGRES_USER: scadaguard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scadaguard -d scadaguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ../server
+    environment:
+      SCADAGUARD_DATABASE_URL: postgresql+asyncpg://scadaguard:${POSTGRES_PASSWORD}@postgres:5432/scadaguard
+      SCADAGUARD_SECRET_KEY: ${SCADAGUARD_SECRET_KEY:?set SCADAGUARD_SECRET_KEY in .env}
+      SCADAGUARD_PUBLIC_URL: ${SCADAGUARD_PUBLIC_URL:-http://localhost:8080}
+      SCADAGUARD_MATTERMOST_WEBHOOK_URL: ${SCADAGUARD_MATTERMOST_WEBHOOK_URL:-}
+      SCADAGUARD_COOKIE_SECURE: ${SCADAGUARD_COOKIE_SECURE:-false}
+      SCADAGUARD_LOG_LEVEL: ${SCADAGUARD_LOG_LEVEL:-INFO}
+      SCADAGUARD_DEFAULT_OFFLINE_THRESHOLD_SECONDS: ${SCADAGUARD_DEFAULT_OFFLINE_THRESHOLD_SECONDS:-90}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../web
+    ports:
+      - "${SCADAGUARD_HTTP_PORT:-8080}:8080"
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

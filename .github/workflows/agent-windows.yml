@@ -1,0 +1,75 @@
+name: Agent Windows
+
+on:
+  push:
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'vcpkg.json'
+      - 'include/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/agent-windows.yml'
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'vcpkg.json'
+      - 'include/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/agent-windows.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg-cache,readwrite
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout vcpkg
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$env:VCPKG_ROOT"
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: vcpkg-cache
+          key: agent-vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: agent-vcpkg-${{ runner.os }}-
+
+      - name: Configure
+        run: cmake --preset windows-msvc
+
+      - name: Build RelWithDebInfo
+        run: cmake --build --preset windows-msvc --config RelWithDebInfo
+
+      - name: Test
+        run: ctest --preset windows-msvc --build-config RelWithDebInfo --output-on-failure
+
+      - name: Package agent
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP 'ScadaGuard-Agent'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item 'build\windows-msvc\RelWithDebInfo\scadaguard.exe' $package
+          Copy-Item 'config\config.example.json' $package
+          Copy-Item 'README.md' $package
+          Copy-Item 'docs' $package -Recurse
+          Compress-Archive -Path "$package\*" -DestinationPath 'ScadaGuard-Agent-windows-x64.zip'
+
+      - name: Upload agent artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScadaGuard-Agent-windows-x64
+          path: ScadaGuard-Agent-windows-x64.zip
+          if-no-files-found: error

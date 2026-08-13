@@ -1,0 +1,17 @@
+#pragma once
+
+#include <string_view>
+
+namespace scadaguard {
+
+inline constexpr std::string_view agent_version = "@PROJECT_VERSION@";
+inline constexpr int protocol_version = 1;
+
+#ifndef SCADAGUARD_BUILD_TYPE
+#define SCADAGUARD_BUILD_TYPE "unknown"
+#endif
+
+inline constexpr std::string_view build_type = SCADAGUARD_BUILD_TYPE;
+inline constexpr std::string_view build_architecture = "x86_64";
+
+} // namespace scadaguard

@@ -1,0 +1,119 @@
+{
+  "agent": {
+    "agent_id": "configure-agent-id",
+    "site_id": "configure-site-id",
+    "host_id": "configure-host-id",
+    "poll_interval_seconds": 30,
+    "check_timeout_seconds": 10,
+    "scheduler_worker_count": 4
+  },
+  "logging": {
+    "directory": "C:\\ProgramData\\ScadaGuard\\logs",
+    "level": "info",
+    "format": "text",
+    "max_file_size_mb": 20,
+    "max_files": 10
+  },
+  "state_database": "C:\\ProgramData\\ScadaGuard\\state.db",
+  "local_api": {
+    "enabled": true,
+    "bind_address": "127.0.0.1",
+    "port": 9180
+  },
+  "central_server": {
+    "enabled": false,
+    "production": true,
+    "base_url": "https://monitor.example.local",
+    "heartbeat_interval_seconds": 30,
+    "request_timeout_seconds": 10,
+    "max_queue_size": 10000
+  },
+  "process_checks": [
+    {
+      "id": "masterscada-runtime",
+      "process_name": "configure-real-process-name.exe",
+      "required": true
+    }
+  ],
+  "service_checks": [
+    {
+      "id": "masterscada-service",
+      "service_name": "configure-real-service-name",
+      "required": true
+    }
+  ],
+  "tcp_checks": [
+    {
+      "id": "local-runtime-port",
+      "host": "127.0.0.1",
+      "port": 10000,
+      "timeout_ms": 3000
+    }
+  ],
+  "disk_checks": [
+    {
+      "id": "system-disk",
+      "path": "C:\\",
+      "warning_free_percent": 15,
+      "critical_free_percent": 7,
+      "critical_free_gb": 5
+    }
+  ],
+  "file_activity_checks": [
+    {
+      "id": "archive-activity",
+      "path": "C:\\Path\\configure-real-archive-file",
+      "warning_unchanged_seconds": 300,
+      "critical_unchanged_seconds": 900,
+      "fail_on_shrink": true
+    }
+  ],
+  "log_checks": [
+    {
+      "id": "runtime-log",
+      "path": "C:\\Path\\configure-real-log-file.log",
+      "case_sensitive": false,
+      "max_read_bytes": 1048576,
+      "groups": [
+        {
+          "name": "configured-errors",
+          "severity": "critical",
+          "patterns": ["configure-real-pattern"]
+        }
+      ]
+    }
+  ],
+  "data_sources": {
+    "current": { "type": "mock" },
+    "archive": {
+      "type": "mock",
+      "enabled": false,
+      "database_path": "C:\\Path\\archive.db",
+      "table": "",
+      "signal_id_column": "",
+      "timestamp_column": "",
+      "value_column": "",
+      "quality_column": ""
+    }
+  },
+  "signals": [
+    {
+      "signal_id": "configure.signal.id",
+      "enabled": true,
+      "minimum": 0,
+      "maximum": 1500,
+      "allowed_quality": ["Good"],
+      "invalid_sentinels": [-32768, 32767, 65535],
+      "max_age_seconds": 60,
+      "frozen_after_seconds": 1200,
+      "frozen_epsilon": 0.01,
+      "max_rate_per_second": 20,
+      "expected_period_seconds": 5,
+      "missing_period_multiplier": 3,
+      "archive_delay_seconds": 30,
+      "archive_match_window_seconds": 10,
+      "archive_absolute_tolerance": 0.1,
+      "archive_relative_tolerance": 0.001
+    }
+  ]
+}

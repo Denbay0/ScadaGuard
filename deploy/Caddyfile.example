@@ -1,0 +1,5 @@
+scada.micom.su {
+    # Place this reverse proxy in front of the compose web service.
+    # Caddy obtains certificates only when you deliberately run this file.
+    reverse_proxy 127.0.0.1:8080
+}

@@ -1,0 +1,17 @@
+:8080 {
+    encode zstd gzip
+
+    @backend path /api/* /healthz
+    reverse_proxy @backend server:8000
+
+    root * /srv
+    try_files {path} /index.html
+    file_server
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        -Server
+    }
+}

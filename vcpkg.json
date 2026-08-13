@@ -1,0 +1,11 @@
+{
+  "name": "scadaguard",
+  "version-string": "0.1.0",
+  "dependencies": [
+    { "name": "cpp-httplib", "features": ["openssl"] },
+    "nlohmann-json",
+    "spdlog",
+    "sqlite3",
+    "catch2"
+  ]
+}
