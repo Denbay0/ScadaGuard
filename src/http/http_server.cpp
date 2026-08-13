@@ -4,8 +4,6 @@
 
 #include <httplib.h>
 
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winternl.h>
 
@@ -185,6 +183,16 @@ nlohmann::json AgentState::version() const {
             {"architecture", std::string(build_architecture)}};
 }
 
+nlohmann::json AgentState::discovery() const {
+    std::scoped_lock lock(mutex_);
+    return discovery_;
+}
+
+void AgentState::update_discovery(nlohmann::json report) {
+    std::scoped_lock lock(mutex_);
+    discovery_ = std::move(report);
+}
+
 std::string AgentState::metrics() const {
     std::scoped_lock lock(mutex_);
     std::ostringstream output;
@@ -213,9 +221,10 @@ std::string AgentState::metrics() const {
     return output.str();
 }
 
-LocalHttpServer::LocalHttpServer(LocalApiConfig config, std::shared_ptr<AgentState> state)
+LocalHttpServer::LocalHttpServer(LocalApiConfig config, std::shared_ptr<AgentState> state,
+                                 std::function<nlohmann::json()> rescan)
     : config_(std::move(config)), state_(std::move(state)),
-      server_(std::make_unique<httplib::Server>()) {
+      rescan_(std::move(rescan)), server_(std::make_unique<httplib::Server>()) {
     if (config_.bind_address != "127.0.0.1") {
         throw std::invalid_argument("local API may only bind to 127.0.0.1");
     }
@@ -240,6 +249,23 @@ LocalHttpServer::LocalHttpServer(LocalApiConfig config, std::shared_ptr<AgentSta
     server_->Get("/api/v1/version", [this](const auto&, auto& response) {
         response.set_content(state_->version().dump(), "application/json");
     });
+    server_->Get("/api/v1/discovery", [this](const auto&, auto& response) {
+        response.set_content(state_->discovery().dump(), "application/json");
+    });
+    server_->Post("/api/v1/discovery/rescan", [this](const auto&, auto& response) {
+        if (!rescan_) {
+            response.status = 503;
+            response.set_content(R"({"error":"discovery is disabled"})", "application/json");
+            return;
+        }
+        try {
+            response.set_content(rescan_().dump(), "application/json");
+        } catch (const std::exception& error) {
+            response.status = 500;
+            response.set_content(nlohmann::json{{"error", error.what()}}.dump(),
+                                 "application/json");
+        }
+    });
     server_->Get("/metrics", [this](const auto&, auto& response) {
         response.set_content(state_->metrics(), "text/plain; version=0.0.4");
     });
@@ -253,7 +279,7 @@ void LocalHttpServer::start() {
     if (thread_.joinable() || !config_.enabled) {
         return;
     }
-    if (server_->bind_to_port(config_.bind_address, config_.port) <= 0) {
+    if (!server_->bind_to_port(config_.bind_address, config_.port)) {
         throw std::runtime_error("cannot bind local API to " + config_.bind_address + ":" +
                                  std::to_string(config_.port));
     }

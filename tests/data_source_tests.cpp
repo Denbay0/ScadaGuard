@@ -1,5 +1,6 @@
 #include "scadaguard/data_sources.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 using namespace scadaguard;
 using namespace std::chrono_literals;
 TEST_CASE("mock sources return configured samples") {

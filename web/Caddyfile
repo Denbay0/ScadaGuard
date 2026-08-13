@@ -1,12 +1,23 @@
 :8080 {
     encode zstd gzip
 
-    @backend path /api/* /healthz
-    reverse_proxy @backend server:8000
+    handle /api/* {
+        reverse_proxy server:8000
+    }
 
-    root * /srv
-    try_files {path} /index.html
-    file_server
+    handle /health* {
+        reverse_proxy server:8000
+    }
+
+    handle /openapi.json {
+        reverse_proxy server:8000
+    }
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
 
     header {
         X-Content-Type-Options nosniff

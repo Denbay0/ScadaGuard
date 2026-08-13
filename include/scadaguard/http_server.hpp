@@ -4,6 +4,7 @@
 #include "scadaguard/model.hpp"
 
 #include <memory>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -30,6 +31,8 @@ class AgentState {
     nlohmann::json configuration_status() const;
     nlohmann::json queue_status() const;
     nlohmann::json version() const;
+    nlohmann::json discovery() const;
+    void update_discovery(nlohmann::json report);
     std::string metrics() const;
 
   private:
@@ -45,11 +48,13 @@ class AgentState {
     std::vector<SignalSample> signals_;
     std::size_t queue_size_{};
     std::optional<TimePoint> oldest_queued_at_;
+    nlohmann::json discovery_{{"masterscada", {{"detected", false}, {"status", "not_found"}}}};
 };
 
 class LocalHttpServer {
   public:
-    LocalHttpServer(LocalApiConfig config, std::shared_ptr<AgentState> state);
+    LocalHttpServer(LocalApiConfig config, std::shared_ptr<AgentState> state,
+                    std::function<nlohmann::json()> rescan = {});
     ~LocalHttpServer();
     void start();
     void stop();
@@ -57,6 +62,7 @@ class LocalHttpServer {
   private:
     LocalApiConfig config_;
     std::shared_ptr<AgentState> state_;
+    std::function<nlohmann::json()> rescan_;
     std::unique_ptr<httplib::Server> server_;
     std::jthread thread_;
 };

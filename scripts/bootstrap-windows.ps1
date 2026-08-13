@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$requestedVcpkgRoot = $env:VCPKG_ROOT
 
 function Find-VisualStudio {
     $vswhereCandidates = @(
@@ -13,7 +14,7 @@ function Find-VisualStudio {
 
     foreach ($candidate in $vswhereCandidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate)) {
-            $installation = & $candidate -latest -products * `
+            $installation = & $candidate -prerelease -latest -products * `
                 -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
                 -property installationPath
             if ($installation) {
@@ -52,6 +53,16 @@ $missing = [System.Collections.Generic.List[string]]::new()
 $visualStudio = Find-VisualStudio
 if (-not $visualStudio) {
     $missing.Add('Visual Studio 2022 Build Tools with Desktop development with C++')
+}
+
+$bundledCMake = if ($visualStudio) {
+    Join-Path $visualStudio 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin'
+} else {
+    $null
+}
+if (-not (Get-Command cmake -ErrorAction SilentlyContinue) -and $bundledCMake -and
+    (Test-Path -LiteralPath (Join-Path $bundledCMake 'cmake.exe'))) {
+    $env:PATH = "$bundledCMake;$env:PATH"
 }
 
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
@@ -103,6 +114,28 @@ $vcvars = Join-Path $visualStudio 'VC\Auxiliary\Build\vcvars64.bat'
 if (-not (Test-Path -LiteralPath $vcvars)) {
     throw "MSVC x64 environment script was not found: $vcvars"
 }
+
+$devShell = Join-Path $visualStudio 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll'
+if (Test-Path -LiteralPath $devShell) {
+    Import-Module $devShell
+    Enter-VsDevShell -VsInstallPath $visualStudio -SkipAutomaticLocation -DevCmdArguments '-arch=amd64 -host_arch=amd64'
+} else {
+    $environment = & cmd.exe /s /c "`"$vcvars`" >nul && set"
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Failed to activate the Visual Studio x64 developer environment.'
+    }
+    foreach ($line in $environment) {
+        $name, $value = $line -split '=', 2
+        if ($name -and $null -ne $value) {
+            Set-Item -Path "Env:$name" -Value $value
+        }
+    }
+}
+
+if ($requestedVcpkgRoot) {
+    $env:VCPKG_ROOT = $requestedVcpkgRoot
+}
+$env:VSLANG = '1033'
 
 Write-Host "Visual Studio: $visualStudio"
 Write-Host "CMake: $((Get-Command cmake).Source)"

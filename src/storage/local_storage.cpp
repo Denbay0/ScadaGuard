@@ -157,7 +157,7 @@ void LocalStorage::migrate() {
         "id INTEGER PRIMARY KEY AUTOINCREMENT,json TEXT NOT NULL,created_at TEXT NOT NULL,"
         "sent_at TEXT)");
 
-    while (schema_version_unlocked() < 3) {
+    while (schema_version_unlocked() < 4) {
         switch (schema_version_unlocked()) {
         case 1:
             migrate_1_to_2();
@@ -165,11 +165,14 @@ void LocalStorage::migrate() {
         case 2:
             migrate_2_to_3();
             break;
+        case 3:
+            migrate_3_to_4();
+            break;
         default:
             throw std::runtime_error("unsupported local database schema version");
         }
     }
-    if (schema_version_unlocked() > 3) {
+    if (schema_version_unlocked() > 4) {
         throw std::runtime_error("local database was created by a newer ScadaGuard version");
     }
 }
@@ -204,6 +207,14 @@ void LocalStorage::migrate_2_to_3() {
                      "SELECT 'legacy-' || id,'incidents',id,json,created_at FROM event_queue "
                      "WHERE sent_at IS NULL");
     execute_unlocked("UPDATE schema_version SET version=3");
+    transaction.commit();
+}
+
+void LocalStorage::migrate_3_to_4() {
+    Transaction transaction(db_);
+    execute_unlocked("CREATE TABLE discovery_state("
+                     "key TEXT PRIMARY KEY,json TEXT NOT NULL,updated_at TEXT NOT NULL)");
+    execute_unlocked("UPDATE schema_version SET version=4");
     transaction.commit();
 }
 
@@ -464,6 +475,63 @@ std::optional<TimePoint> LocalStorage::oldest_pending_event_at() const {
         return std::nullopt;
     }
     return parse_utc(column_text(statement.get(), 0));
+}
+
+void LocalStorage::save_discovery_report(const nlohmann::json& report) {
+    std::scoped_lock lock(mutex_);
+    Statement statement(
+        db_, "INSERT INTO discovery_state(key,json,updated_at)VALUES('latest_report',?,?) "
+             "ON CONFLICT(key)DO UPDATE SET json=excluded.json,updated_at=excluded.updated_at");
+    statement.bind(1, report.dump());
+    statement.bind(2, format_utc(Clock::now()));
+    statement.execute();
+}
+
+std::optional<nlohmann::json> LocalStorage::load_discovery_report() const {
+    std::scoped_lock lock(mutex_);
+    Statement statement(db_, "SELECT json FROM discovery_state WHERE key='latest_report'");
+    if (sqlite3_step(statement.get()) != SQLITE_ROW) {
+        return std::nullopt;
+    }
+    return nlohmann::json::parse(column_text(statement.get(), 0));
+}
+
+void LocalStorage::save_working_central_configuration(const nlohmann::json& configuration) {
+    std::scoped_lock lock(mutex_);
+    Transaction transaction(db_);
+    execute_unlocked(
+        "INSERT INTO agent_state(key,value,updated_at) "
+        "SELECT 'previous_central_configuration',value,updated_at FROM agent_state "
+        "WHERE key='working_central_configuration' "
+        "ON CONFLICT(key)DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at");
+    Statement statement(
+        db_, "INSERT INTO agent_state(key,value,updated_at)VALUES("
+             "'working_central_configuration',?,?) ON CONFLICT(key)DO UPDATE SET "
+             "value=excluded.value,updated_at=excluded.updated_at");
+    statement.bind(1, configuration.dump());
+    statement.bind(2, format_utc(Clock::now()));
+    statement.execute();
+    transaction.commit();
+}
+
+std::optional<nlohmann::json> LocalStorage::load_working_central_configuration() const {
+    std::scoped_lock lock(mutex_);
+    Statement statement(db_, "SELECT value FROM agent_state "
+                             "WHERE key='working_central_configuration'");
+    if (sqlite3_step(statement.get()) != SQLITE_ROW) {
+        return std::nullopt;
+    }
+    return nlohmann::json::parse(column_text(statement.get(), 0));
+}
+
+std::optional<nlohmann::json> LocalStorage::load_previous_central_configuration() const {
+    std::scoped_lock lock(mutex_);
+    Statement statement(db_, "SELECT value FROM agent_state "
+                             "WHERE key='previous_central_configuration'");
+    if (sqlite3_step(statement.get()) != SQLITE_ROW) {
+        return std::nullopt;
+    }
+    return nlohmann::json::parse(column_text(statement.get(), 0));
 }
 
 } // namespace scadaguard

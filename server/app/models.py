@@ -206,3 +206,30 @@ class AuditLog(Base):
     target_id: Mapped[str] = mapped_column(String(200))
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class AgentDiscoveryReport(Base):
+    __tablename__ = "agent_discovery_reports"
+    __table_args__ = (Index("agent_discovery_latest_idx", "agent_id", "scanned_at"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id"), index=True)
+    scan_id: Mapped[str] = mapped_column(String(100), unique=True)
+    scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    report: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class DesiredAgentConfiguration(Base):
+    __tablename__ = "desired_agent_configurations"
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id"), primary_key=True)
+    config_version: Mapped[int] = mapped_column(BigInteger, default=1)
+    config_hash: Mapped[str] = mapped_column(String(100))
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    applied_version: Mapped[int | None] = mapped_column(BigInteger)
+    apply_status: Mapped[str] = mapped_column(String(30), default="pending")
+    apply_message: Mapped[str] = mapped_column(Text, default="")
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import database_session
 from app.models import (
     Agent,
+    AgentDiscoveryReport,
     AgentToken,
     CheckHistory,
     CheckSnapshot,
@@ -23,6 +24,7 @@ from app.models import (
 from app.schemas import (
     AgentEnvelope,
     CheckResultItem,
+    DiscoveryPayload,
     IncidentEventItem,
     IngestResponse,
     SignalSampleItem,
@@ -187,9 +189,33 @@ async def persist_heartbeat(envelope: AgentEnvelope, agent: Agent) -> None:
         agent.current_status = HealthState(raw_status)
 
 
+async def persist_discovery(envelope: AgentEnvelope, agent: Agent, session: AsyncSession) -> None:
+    try:
+        report = DiscoveryPayload.model_validate(envelope.payload)
+    except ValidationError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=error.errors()) from error
+    statement = insert(AgentDiscoveryReport).values(
+        agent_id=agent.id,
+        scan_id=report.scan_id,
+        scanned_at=report.scanned_at,
+        report=report.model_dump(mode="json"),
+    )
+    await session.execute(
+        statement.on_conflict_do_update(
+            index_elements=[AgentDiscoveryReport.scan_id],
+            set_={
+                "scanned_at": statement.excluded.scanned_at,
+                "report": statement.excluded.report,
+            },
+        )
+    )
+
+
 async def ingest(
     envelope: AgentEnvelope,
-    expected_kind: Literal["heartbeat", "check_results", "incidents", "signal_samples"],
+    expected_kind: Literal[
+        "heartbeat", "check_results", "incidents", "signal_samples", "discovery"
+    ],
     agent: Agent,
     session: AsyncSession,
 ) -> IngestResponse:
@@ -221,8 +247,10 @@ async def ingest(
         await persist_checks(envelope, agent, session)
     elif expected_kind == "incidents":
         await persist_incidents(envelope, agent, session)
-    else:
+    elif expected_kind == "signal_samples":
         await persist_samples(envelope, agent, session)
+    else:
+        await persist_discovery(envelope, agent, session)
 
     agent.last_seen_at = datetime.now(UTC)
     agent.boot_id = str(envelope.boot_id)
@@ -264,3 +292,12 @@ async def ingest_signal_samples(
     session: Annotated[AsyncSession, Depends(database_session)],
 ) -> IngestResponse:
     return await ingest(envelope, "signal_samples", agent, session)
+
+
+@router.post("/discovery", response_model=IngestResponse)
+async def ingest_discovery(
+    envelope: AgentEnvelope,
+    agent: Annotated[Agent, Depends(authenticated_agent)],
+    session: Annotated[AsyncSession, Depends(database_session)],
+) -> IngestResponse:
+    return await ingest(envelope, "discovery", agent, session)

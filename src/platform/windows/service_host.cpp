@@ -1,6 +1,4 @@
 #include "scadaguard/service_host.hpp"
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <stdexcept>

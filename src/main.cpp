@@ -1,7 +1,9 @@
 #include "scadaguard/application.hpp"
 #include "scadaguard/config.hpp"
+#include "scadaguard/discovery.hpp"
 #include "scadaguard/service_host.hpp"
 #include "scadaguard/version.hpp"
+#include "scadaguard/windows_discovery.hpp"
 
 #include <csignal>
 #include <filesystem>
@@ -26,6 +28,7 @@ void signal_handler(int) {
 struct Args {
     std::string mode;
     std::filesystem::path config = scadaguard::default_config_path();
+    bool json{};
 };
 Args parse_args(int argc, char** argv) {
     Args a;
@@ -35,14 +38,58 @@ Args parse_args(int argc, char** argv) {
             if (++i >= argc)
                 throw std::invalid_argument("--config requires a path");
             a.config = argv[i];
+        } else if (v == "--json") {
+            a.json = true;
         } else if (a.mode.empty())
             a.mode = v;
+        else if (a.mode == "--validate-config" && !v.starts_with("--") &&
+                 a.config == scadaguard::default_config_path())
+            a.config = v;
         else
             throw std::invalid_argument("unexpected argument: " + v);
     }
     if (a.mode.empty())
         throw std::invalid_argument("mode is required");
     return a;
+}
+
+bool is_discovery_mode(const std::string& mode) {
+    return mode == "--discover" || mode == "--discover-masterscada" ||
+           mode == "--discover-archives" || mode == "--discover-logs";
+}
+
+int run_discovery_cli(const Args& args) {
+    scadaguard::WindowsDiscoveryEnvironment environment;
+    const scadaguard::MasterScadaDiscovery discovery(environment);
+    const auto report = discovery.scan();
+    const nlohmann::json json = report;
+    if (args.json) {
+        std::cout << json.dump(2) << '\n';
+        return 0;
+    }
+    std::cout << "ScadaGuard Discovery\n\n";
+    if (args.mode != "--discover-archives" && args.mode != "--discover-logs") {
+        std::cout << "MasterSCADA:\n"
+                  << "  Status: " << scadaguard::to_string(report.status) << '\n'
+                  << "  Confidence: " << scadaguard::to_string(report.confidence) << '\n';
+        if (!report.version.empty()) {
+            std::cout << "  Version: " << report.version << '\n';
+        }
+    }
+    if (args.mode != "--discover-masterscada" && args.mode != "--discover-logs") {
+        std::cout << "\nArchives: " << report.archive_candidates.size() << " candidates\n";
+        for (std::size_t index = 0; index < report.archive_candidates.size(); ++index) {
+            const auto& candidate = report.archive_candidates[index];
+            std::cout << "  #" << index + 1 << " ["
+                      << scadaguard::to_string(candidate.confidence) << "] "
+                      << candidate.path.string() << '\n';
+        }
+    }
+    if (args.mode != "--discover-masterscada" && args.mode != "--discover-archives") {
+        std::cout << "\nLogs: " << report.log_candidates.size() << " candidates\n";
+    }
+    std::cout << "\nNo changes were made to MasterSCADA.\n";
+    return 0;
 }
 class JsonLogFormatter final : public spdlog::formatter {
   public:
@@ -94,6 +141,9 @@ int main(int argc, char** argv) {
                       << scadaguard::protocol_version << ", " << scadaguard::build_type << ", "
                       << scadaguard::build_architecture << ")\n";
             return 0;
+        }
+        if (is_discovery_mode(args.mode)) {
+            return run_discovery_cli(args);
         }
         if (args.mode == "--install") {
             scadaguard::WindowsServiceHost::install(std::filesystem::absolute(argv[0]),

@@ -4,10 +4,24 @@
   "configurePresets": [
     {
       "name": "windows-msvc",
-      "displayName": "Windows x64 MSVC",
+      "displayName": "Windows x64 MSVC (detected toolset)",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/windows-msvc",
+      "environment": { "VSLANG": "1033" },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "SCADAGUARD_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-msvc-vs2022",
+      "displayName": "Windows x64 Visual Studio 2022 CI",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/windows-msvc",
+      "binaryDir": "${sourceDir}/build/windows-msvc-vs2022",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "SCADAGUARD_BUILD_TESTS": "ON"
@@ -15,12 +29,19 @@
     }
   ],
   "buildPresets": [
-    { "name": "windows-msvc", "configurePreset": "windows-msvc", "configuration": "RelWithDebInfo" }
+    { "name": "windows-msvc", "configurePreset": "windows-msvc", "configuration": "RelWithDebInfo" },
+    { "name": "windows-msvc-vs2022", "configurePreset": "windows-msvc-vs2022", "configuration": "RelWithDebInfo" }
   ],
   "testPresets": [
     {
       "name": "windows-msvc",
       "configurePreset": "windows-msvc",
+      "configuration": "RelWithDebInfo",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "windows-msvc-vs2022",
+      "configurePreset": "windows-msvc-vs2022",
       "configuration": "RelWithDebInfo",
       "output": { "outputOnFailure": true }
     }

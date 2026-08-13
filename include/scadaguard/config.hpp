@@ -41,6 +41,21 @@ struct CentralServerConfig {
     int request_timeout_seconds{10};
     std::size_t max_queue_size{10000};
 };
+struct DiscoveryConfig {
+    bool enabled{true};
+    int scheduled_interval_hours{6};
+    std::vector<std::string> keywords{"masterscada", "mpssoft", "мпс софт", "mplc",
+                                      "masterscada4d"};
+    std::vector<std::filesystem::path> additional_roots;
+    std::vector<std::filesystem::path> relative_log_directories{"logs", "log", "runtime\\logs"};
+    std::size_t maximum_directories{500};
+    std::size_t maximum_files{10000};
+    std::size_t maximum_depth{4};
+    int maximum_duration_seconds{30};
+    std::size_t maximum_inspected_bytes{65536};
+    std::optional<std::filesystem::path> confirmed_archive;
+    std::vector<std::filesystem::path> confirmed_logs;
+};
 struct ProcessCheckConfig {
     std::string id;
     std::string process_name;
@@ -121,6 +136,7 @@ struct AppConfig {
     LoggingConfig logging;
     LocalApiConfig local_api;
     CentralServerConfig central_server;
+    DiscoveryConfig discovery;
     std::filesystem::path state_database;
     std::vector<ProcessCheckConfig> process_checks;
     std::vector<ServiceCheckConfig> service_checks;

@@ -21,6 +21,24 @@ docker compose --env-file .\deploy\.env -f .\deploy\docker-compose.yml exec serv
 
 Панель откроется на `http://localhost:8080`. Миграции Alembic выполняются перед каждым стартом backend. Vite dev server в production не используется: статический build отдаёт Caddy.
 
+Для локального Windows Agent используйте loopback-only override и development bootstrap:
+
+```powershell
+docker compose --env-file .\deploy\.env -f .\deploy\docker-compose.yml -f .\deploy\docker-compose.dev.yml up -d --build
+docker compose --env-file .\deploy\.env -f .\deploy\docker-compose.yml -f .\deploy\docker-compose.dev.yml exec server python -m app.cli bootstrap-demo --host-id local-windows
+# Скопируйте выданный один раз токен только в окружение текущего процесса.
+$env:SCADAGUARD_API_TOKEN = '<token>'
+.\build\windows-msvc\RelWithDebInfo\scadaguard.exe --console --config .\config\config.local-masterscada.json
+```
+
+Автоматический локальный smoke/E2E, включая `agent_offline` и recovery:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-local-e2e.ps1 -TestOfflineRecovery
+```
+
+Скрипт использует случайные временные credentials, удаляет тестового администратора и не сохраняет raw token.
+
 Практическая регистрация первого объекта и агента описана в [docs/first-site-setup.md](docs/first-site-setup.md).
 
 ## Сборка Windows Agent
@@ -42,7 +60,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test-agent.ps1
 .\build\windows-msvc\RelWithDebInfo\scadaguard.exe --console --config C:\ProgramData\ScadaGuard\config.json
 ```
 
-Локальный API слушает только `127.0.0.1:9180`: `/api/v1/health`, `/checks`, `/incidents`, `/signals`, `/config/status`, `/queue/status`, `/version` и `/metrics`.
+Локальный API слушает только `127.0.0.1:9180`: `/api/v1/health`, `/checks`, `/incidents`, `/signals`, `/config/status`, `/queue/status`, `/version`, `/discovery`, `/discovery/rescan` и `/metrics`.
+
+Безопасное autodiscovery можно также запустить отдельно: `--discover`, `--discover --json`, `--discover-masterscada`, `--discover-archives` или `--discover-logs`. Эти команды только читают локальные метаданные и завершаются сообщением, что MasterSCADA не изменялась.
 
 ## Проверки
 

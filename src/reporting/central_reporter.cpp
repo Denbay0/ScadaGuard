@@ -1,6 +1,6 @@
 #include "scadaguard/central_reporter.hpp"
+#include "scadaguard/environment.hpp"
 #include <algorithm>
-#include <cstdlib>
 #include <httplib.h>
 #include <stdexcept>
 
@@ -13,15 +13,34 @@ HttpCentralReporter::HttpCentralReporter(CentralServerConfig c, LocalStorage& s)
 bool HttpCentralReporter::send(const char* path, const nlohmann::json& body, std::stop_token stop) {
     if (stop.stop_requested())
         return false;
-    const char* token = std::getenv("SCADAGUARD_API_TOKEN");
-    if (!token || !*token)
+    const auto token = environment_variable("SCADAGUARD_API_TOKEN");
+    if (!token)
         return false;
     httplib::Client client(config_.base_url);
     client.set_connection_timeout(config_.request_timeout_seconds);
     client.set_read_timeout(config_.request_timeout_seconds);
-    httplib::Headers headers{{"Authorization", std::string("Bearer ") + token}};
+    httplib::Headers headers{{"Authorization", "Bearer " + *token}};
     const auto response = client.Post(path, headers, body.dump(), "application/json");
     return response && response->status >= 200 && response->status < 300;
+}
+std::optional<nlohmann::json> HttpCentralReporter::get(const char* path, std::stop_token stop) {
+    if (stop.stop_requested())
+        return std::nullopt;
+    const auto token = environment_variable("SCADAGUARD_API_TOKEN");
+    if (!token)
+        return std::nullopt;
+    httplib::Client client(config_.base_url);
+    client.set_connection_timeout(config_.request_timeout_seconds);
+    client.set_read_timeout(config_.request_timeout_seconds);
+    httplib::Headers headers{{"Authorization", "Bearer " + *token}};
+    const auto response = client.Get(path, headers);
+    if (!response || response->status < 200 || response->status >= 300)
+        return std::nullopt;
+    try {
+        return nlohmann::json::parse(response->body);
+    } catch (const nlohmann::json::exception&) {
+        return std::nullopt;
+    }
 }
 bool HttpCentralReporter::send_heartbeat(const nlohmann::json& v, std::stop_token stop) {
     const bool sent = send_or_queue("/api/v1/agent/heartbeat", v, stop);
@@ -44,6 +63,16 @@ bool HttpCentralReporter::send_incidents(const nlohmann::json& value, std::stop_
 }
 bool HttpCentralReporter::send_signal_samples(const nlohmann::json& value, std::stop_token stop) {
     return send_or_queue("/api/v1/agent/signal-samples/batch", value, stop);
+}
+bool HttpCentralReporter::send_discovery(const nlohmann::json& value, std::stop_token stop) {
+    return send_or_queue("/api/v1/agent/discovery", value, stop);
+}
+std::optional<nlohmann::json> HttpCentralReporter::fetch_configuration(std::stop_token stop) {
+    return get("/api/v1/agent/config", stop);
+}
+bool HttpCentralReporter::send_configuration_status(const nlohmann::json& value,
+                                                     std::stop_token stop) {
+    return send_or_queue("/api/v1/agent/config/status", value, stop);
 }
 std::size_t HttpCentralReporter::flush(std::stop_token stop) {
     const auto now = std::chrono::steady_clock::now();

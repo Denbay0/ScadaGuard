@@ -46,3 +46,12 @@ TEST_CASE("configuration status reports real metadata") {
     REQUIRE(status.at("path") == configuration.path);
     REQUIRE(status.at("hash") == configuration.hash);
 }
+
+TEST_CASE("agent state exposes the latest discovery report") {
+    AgentState state(AgentConfig{"agent", "site", "host"}, ConfigurationStatus{},
+                     generate_uuid_v4());
+    state.update_discovery({{"scan_id", "scan-1"},
+                            {"masterscada", {{"detected", true}, {"status", "detected"}}}});
+    REQUIRE(state.discovery().at("scan_id") == "scan-1");
+    REQUIRE(state.discovery().at("masterscada").at("detected") == true);
+}

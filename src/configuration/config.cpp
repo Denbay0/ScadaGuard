@@ -1,6 +1,6 @@
 #include "scadaguard/config.hpp"
+#include "scadaguard/environment.hpp"
 
-#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <set>
@@ -30,8 +30,8 @@ T optional(const nlohmann::json& j, const char* key, T fallback, const std::stri
     }
 }
 std::filesystem::path program_data() {
-    if (const char* value = std::getenv("ProgramData"))
-        return std::filesystem::path(value);
+    if (const auto value = environment_variable("ProgramData"))
+        return std::filesystem::path(*value);
     return L"C:\\ProgramData";
 }
 
@@ -100,6 +100,35 @@ AppConfig parse_config(const nlohmann::json& root) {
             optional(*it, "request_timeout_seconds", 10, "central_server");
         c.central_server.max_queue_size =
             optional<std::size_t>(*it, "max_queue_size", 10000, "central_server");
+    }
+    if (const auto it = root.find("discovery"); it != root.end()) {
+        if (!it->is_object())
+            throw ConfigurationError("discovery must be an object");
+        c.discovery.enabled = optional(*it, "enabled", true, "discovery");
+        c.discovery.scheduled_interval_hours =
+            optional(*it, "scheduled_interval_hours", 6, "discovery");
+        c.discovery.keywords = optional(*it, "keywords", c.discovery.keywords, "discovery");
+        c.discovery.additional_roots =
+            optional(*it, "additional_roots", c.discovery.additional_roots, "discovery");
+        c.discovery.relative_log_directories = optional(
+            *it, "relative_log_directories", c.discovery.relative_log_directories, "discovery");
+        c.discovery.maximum_directories =
+            optional<std::size_t>(*it, "maximum_directories", 500, "discovery");
+        c.discovery.maximum_files =
+            optional<std::size_t>(*it, "maximum_files", 10000, "discovery");
+        c.discovery.maximum_depth =
+            optional<std::size_t>(*it, "maximum_depth", 4, "discovery");
+        c.discovery.maximum_duration_seconds =
+            optional(*it, "maximum_duration_seconds", 30, "discovery");
+        c.discovery.maximum_inspected_bytes =
+            optional<std::size_t>(*it, "maximum_inspected_bytes", 65536, "discovery");
+        if (it->contains("confirmed_archive")) {
+            const auto value = required<std::string>(*it, "confirmed_archive", "discovery");
+            if (!value.empty())
+                c.discovery.confirmed_archive = value;
+        }
+        c.discovery.confirmed_logs =
+            optional(*it, "confirmed_logs", c.discovery.confirmed_logs, "discovery");
     }
     c.state_database = root.value("state_database", default_state_database_path().string());
 
@@ -270,6 +299,15 @@ std::vector<std::string> validate_config(const AppConfig& c) {
              "central_server.heartbeat_interval_seconds");
     positive(c.central_server.request_timeout_seconds, "central_server.request_timeout_seconds");
     positive(c.central_server.max_queue_size, "central_server.max_queue_size");
+    positive(c.discovery.scheduled_interval_hours, "discovery.scheduled_interval_hours");
+    positive(c.discovery.maximum_directories, "discovery.maximum_directories");
+    positive(c.discovery.maximum_files, "discovery.maximum_files");
+    positive(c.discovery.maximum_duration_seconds, "discovery.maximum_duration_seconds");
+    positive(c.discovery.maximum_inspected_bytes, "discovery.maximum_inspected_bytes");
+    if (c.discovery.maximum_depth > 32)
+        e.push_back("discovery.maximum_depth must not exceed 32");
+    if (c.discovery.keywords.empty())
+        e.push_back("discovery.keywords must not be empty");
     std::set<std::string> ids;
     const auto id = [&](const std::string& v, const std::string& p) {
         if (v.empty())

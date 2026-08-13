@@ -28,6 +28,19 @@
     "request_timeout_seconds": 10,
     "max_queue_size": 10000
   },
+  "discovery": {
+    "enabled": true,
+    "scheduled_interval_hours": 6,
+    "keywords": ["masterscada", "mpssoft", "мпс софт", "mplc", "masterscada4d"],
+    "additional_roots": [],
+    "relative_log_directories": ["logs", "log", "runtime\\logs"],
+    "maximum_directories": 500,
+    "maximum_files": 10000,
+    "maximum_depth": 4,
+    "maximum_duration_seconds": 30,
+    "maximum_inspected_bytes": 65536,
+    "confirmed_logs": []
+  },
   "process_checks": [
     {
       "id": "masterscada-runtime",

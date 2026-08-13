@@ -1,6 +1,6 @@
 # Agent protocol v1
 
-Все четыре endpoint принимают один envelope:
+Пять ingest endpoint принимают один envelope:
 
 ```json
 {
@@ -17,6 +17,6 @@
 }
 ```
 
-Endpoints: `/api/v1/agent/heartbeat`, `/check-results/batch`, `/incidents/batch`, `/signal-samples/batch`. Заголовок — `Authorization: Bearer <agent-token>`. `message_kind` обязан соответствовать endpoint. Повтор того же UUID возвращает `duplicate: true` и не создаёт повторных записей. Sequence number сохраняется для диагностики пропусков; message identity задаёт UUID.
+Endpoints: `/api/v1/agent/heartbeat`, `/check-results/batch`, `/incidents/batch`, `/signal-samples/batch`, `/discovery`. Заголовок — `Authorization: Bearer <agent-token>`. `message_kind` обязан соответствовать endpoint. Повтор того же UUID возвращает `duplicate: true` и не создаёт повторных записей. Sequence number сохраняется для диагностики пропусков; message identity задаёт UUID.
 
 Check/incident/sample batches передают элементы в `payload.items`. Timestamps должны содержать timezone. Сервер отклоняет несовпадающие `agent_id`/`host_id` и revoked token.

@@ -1,0 +1,8 @@
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${SCADAGUARD_POSTGRES_PORT:-5432}:5432"
+
+  server:
+    ports:
+      - "127.0.0.1:${SCADAGUARD_API_PORT:-8000}:8000"

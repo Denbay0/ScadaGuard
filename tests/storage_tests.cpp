@@ -43,7 +43,31 @@ CheckResult critical_result() {
 TEST_CASE("local storage migrates a new database to the latest schema") {
     TemporaryDatabase database;
     LocalStorage storage(database.path());
-    REQUIRE(storage.schema_version() == 3);
+    REQUIRE(storage.schema_version() == 4);
+}
+
+TEST_CASE("discovery report survives reopening") {
+    TemporaryDatabase database;
+    {
+        LocalStorage storage(database.path());
+        storage.save_discovery_report({{"scan_id", "scan-1"}, {"masterscada", {{"detected", true}}}});
+    }
+    {
+        LocalStorage storage(database.path());
+        const auto report = storage.load_discovery_report();
+        REQUIRE(report.has_value());
+        REQUIRE(report->at("scan_id") == "scan-1");
+        REQUIRE(report->at("masterscada").at("detected") == true);
+    }
+}
+
+TEST_CASE("central configuration activation retains the previous working version") {
+    TemporaryDatabase database;
+    LocalStorage storage(database.path());
+    storage.save_working_central_configuration({{"config_version", 1}});
+    storage.save_working_central_configuration({{"config_version", 2}});
+    REQUIRE(storage.load_working_central_configuration()->at("config_version") == 2);
+    REQUIRE(storage.load_previous_central_configuration()->at("config_version") == 1);
 }
 
 TEST_CASE("check, log, file, and signal state survives reopening") {

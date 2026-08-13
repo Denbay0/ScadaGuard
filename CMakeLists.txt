@@ -21,10 +21,12 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(httplib CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 add_library(scadaguard_core
   src/model.cpp
-  src/configuration/config.cpp
+    src/configuration/config.cpp
+    src/configuration/central_configuration.cpp
   src/checks/checks.cpp
   src/checks/scheduler.cpp
   src/quality/data_quality.cpp
@@ -34,6 +36,10 @@ add_library(scadaguard_core
   src/reporting/central_reporter.cpp
   src/http/http_server.cpp
   src/application/application.cpp
+  src/discovery/discovery.cpp
+  src/discovery/archive_schema_analyzer.cpp
+  src/platform/windows/environment.cpp
+  src/platform/windows/windows_discovery.cpp
   src/platform/windows/service_host.cpp
 )
 target_include_directories(scadaguard_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -46,6 +52,8 @@ target_link_libraries(scadaguard_core
   PUBLIC nlohmann_json::nlohmann_json
   PRIVATE spdlog::spdlog httplib::httplib unofficial::sqlite3::sqlite3
           ws2_32 advapi32 iphlpapi
+          OpenSSL::Crypto
+          version
 )
 
 add_executable(scadaguard src/main.cpp)
@@ -67,6 +75,7 @@ if(SCADAGUARD_BUILD_TESTS)
     tests/data_source_tests.cpp
     tests/scheduler_tests.cpp
     tests/storage_tests.cpp
+    tests/discovery_tests.cpp
   )
   target_compile_options(scadaguard_tests PRIVATE /W4 /permissive- /EHsc)
   target_link_libraries(scadaguard_tests PRIVATE scadaguard_core Catch2::Catch2WithMain)

@@ -59,6 +59,7 @@ struct SqliteArchiveOptions {
     bool enabled{};
     std::filesystem::path database_path;
     std::string table, signal_id_column, timestamp_column, value_column, quality_column;
+    std::size_t maximum_batch_size{5'000};
 };
 class SqliteArchiveDataSource final : public IArchiveDataSource {
   public:

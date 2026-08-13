@@ -3,6 +3,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import delete
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SCADAGUARD_RUN_DB_TESTS") != "1",
@@ -16,7 +17,7 @@ async def test_agent_authentication_identity_and_idempotency() -> None:
 
     from app.database import session_factory
     from app.main import app
-    from app.models import Agent, AgentToken, HealthState, Site
+    from app.models import Agent, AgentToken, HealthState, IngestedMessage, Site
     from app.security import create_agent_token
 
     suffix = uuid.uuid4().hex
@@ -89,3 +90,10 @@ async def test_agent_authentication_identity_and_idempotency() -> None:
             headers={"Authorization": f"Bearer {raw_token}"},
         )
         assert mismatch.status_code == 403
+
+    async with session_factory() as session:
+        await session.execute(delete(IngestedMessage).where(IngestedMessage.agent_id == agent.id))
+        await session.execute(delete(AgentToken).where(AgentToken.agent_id == agent.id))
+        await session.execute(delete(Agent).where(Agent.id == agent.id))
+        await session.execute(delete(Site).where(Site.slug == f"ci-{suffix}"))
+        await session.commit()

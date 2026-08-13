@@ -10,7 +10,7 @@ class AgentEnvelope(BaseModel):
 
     message_id: uuid.UUID
     protocol_version: Literal[1]
-    message_kind: Literal["heartbeat", "check_results", "incidents", "signal_samples"]
+    message_kind: Literal["heartbeat", "check_results", "incidents", "signal_samples", "discovery"]
     agent_id: str = Field(min_length=1, max_length=200)
     site_id: str = Field(min_length=1, max_length=200)
     host_id: str = Field(min_length=1, max_length=200)
@@ -77,3 +77,22 @@ class SignalSampleItem(BaseModel):
     source_timestamp: datetime
     received_timestamp: datetime
     quality: str = Field(min_length=1, max_length=100)
+
+
+class DiscoveryPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    scan_id: str = Field(min_length=1, max_length=100)
+    scanned_at: datetime
+    masterscada: dict[str, Any]
+    components: list[dict[str, Any]] = Field(default_factory=list)
+    archive_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    log_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    opcua_candidates: list[dict[str, Any] | str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def scanned_at_is_aware(self) -> "DiscoveryPayload":
+        if self.scanned_at.tzinfo is None:
+            raise ValueError("scanned_at must contain a timezone")
+        return self

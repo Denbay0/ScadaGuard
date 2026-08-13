@@ -1,4 +1,4 @@
-import { Activity, Bell, Factory, Gauge, LogOut, Radio, ShieldCheck } from 'lucide-react'
+import { Activity, Bell, Bot, Factory, Gauge, LogOut, Radio, ShieldCheck } from 'lucide-react'
 import { NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import { api } from './api'
 import Dashboard from './pages/Dashboard'
@@ -6,6 +6,8 @@ import Incidents from './pages/Incidents'
 import Login from './pages/Login'
 import Signals from './pages/Signals'
 import Sites from './pages/Sites'
+import Agents from './pages/Agents'
+import AgentDiscovery from './pages/AgentDiscovery'
 
 function Shell() {
   const navigate = useNavigate()
@@ -20,6 +22,7 @@ function Shell() {
         <nav aria-label="Основная навигация">
           <NavLink to="/"><Gauge />Обзор</NavLink>
           <NavLink to="/sites"><Factory />Объекты</NavLink>
+          <NavLink to="/agents"><Bot />Агенты</NavLink>
           <NavLink to="/incidents"><Bell />Инциденты</NavLink>
           <NavLink to="/signals"><Activity />Сигналы</NavLink>
         </nav>
@@ -38,6 +41,8 @@ export default function App() {
       <Route element={<Shell />}>
         <Route index element={<Dashboard />} />
         <Route path="sites" element={<Sites />} />
+        <Route path="agents" element={<Agents />} />
+        <Route path="agents/:agentId" element={<AgentDiscovery />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="signals" element={<Signals />} />
       </Route>

@@ -48,12 +48,19 @@ class LocalStorage : public ICheckStateStore {
     std::size_t pending_event_count() const;
     std::optional<TimePoint> oldest_pending_event_at() const;
 
+    void save_discovery_report(const nlohmann::json& report);
+    std::optional<nlohmann::json> load_discovery_report() const;
+    void save_working_central_configuration(const nlohmann::json& configuration);
+    std::optional<nlohmann::json> load_working_central_configuration() const;
+    std::optional<nlohmann::json> load_previous_central_configuration() const;
+
   private:
     void execute_unlocked(const char* sql) const;
     int schema_version_unlocked() const;
     void migrate();
     void migrate_1_to_2();
     void migrate_2_to_3();
+    void migrate_3_to_4();
 
     sqlite3* db_{};
     mutable std::mutex mutex_;

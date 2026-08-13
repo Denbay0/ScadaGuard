@@ -48,20 +48,20 @@ jobs:
           restore-keys: agent-vcpkg-${{ runner.os }}-
 
       - name: Configure
-        run: cmake --preset windows-msvc
+        run: cmake --preset windows-msvc-vs2022
 
       - name: Build RelWithDebInfo
-        run: cmake --build --preset windows-msvc --config RelWithDebInfo
+        run: cmake --build --preset windows-msvc-vs2022 --config RelWithDebInfo
 
       - name: Test
-        run: ctest --preset windows-msvc --build-config RelWithDebInfo --output-on-failure
+        run: ctest --preset windows-msvc-vs2022 --build-config RelWithDebInfo --output-on-failure
 
       - name: Package agent
         shell: pwsh
         run: |
           $package = Join-Path $env:RUNNER_TEMP 'ScadaGuard-Agent'
           New-Item -ItemType Directory -Force -Path $package | Out-Null
-          Copy-Item 'build\windows-msvc\RelWithDebInfo\scadaguard.exe' $package
+          Copy-Item 'build\windows-msvc-vs2022\RelWithDebInfo\scadaguard.exe' $package
           Copy-Item 'config\config.example.json' $package
           Copy-Item 'README.md' $package
           Copy-Item 'docs' $package -Recurse

@@ -1,0 +1,55 @@
+{
+  "agent": {
+    "agent_id": "local-masterscada",
+    "site_id": "local-masterscada",
+    "host_id": "local-windows",
+    "poll_interval_seconds": 10,
+    "check_timeout_seconds": 10,
+    "scheduler_worker_count": 2
+  },
+  "logging": {
+    "directory": "C:\\ProgramData\\ScadaGuard\\logs",
+    "level": "info",
+    "format": "text",
+    "max_file_size_mb": 20,
+    "max_files": 5
+  },
+  "state_database": "C:\\ProgramData\\ScadaGuard\\local-masterscada-state.db",
+  "local_api": {
+    "enabled": true,
+    "bind_address": "127.0.0.1",
+    "port": 9181
+  },
+  "central_server": {
+    "enabled": true,
+    "production": false,
+    "base_url": "http://127.0.0.1:8000",
+    "heartbeat_interval_seconds": 10,
+    "request_timeout_seconds": 10,
+    "max_queue_size": 10000
+  },
+  "discovery": {
+    "enabled": true,
+    "scheduled_interval_hours": 1,
+    "keywords": ["masterscada", "mpssoft", "мпс софт", "mplc", "masterscada4d"],
+    "additional_roots": [],
+    "relative_log_directories": ["logs", "log", "runtime\\logs"],
+    "maximum_directories": 500,
+    "maximum_files": 10000,
+    "maximum_depth": 4,
+    "maximum_duration_seconds": 30,
+    "maximum_inspected_bytes": 65536,
+    "confirmed_logs": []
+  },
+  "process_checks": [],
+  "service_checks": [],
+  "tcp_checks": [],
+  "disk_checks": [],
+  "file_activity_checks": [],
+  "log_checks": [],
+  "data_sources": {
+    "current": { "type": "mock" },
+    "archive": { "type": "sqlite", "enabled": false }
+  },
+  "signals": []
+}
