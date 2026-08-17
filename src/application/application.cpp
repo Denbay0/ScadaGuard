@@ -1,6 +1,8 @@
+#include "scadaguard/central_configuration.hpp"
+#include "scadaguard/windows_discovery.hpp"
 #include "scadaguard/application.hpp"
 #include "scadaguard/central_reporter.hpp"
-#include "scadaguard/central_configuration.hpp"
+
 #include "scadaguard/checks.hpp"
 #include "scadaguard/data_quality.hpp"
 #include "scadaguard/data_sources.hpp"
@@ -8,8 +10,9 @@
 #include "scadaguard/http_server.hpp"
 #include "scadaguard/incident_manager.hpp"
 #include "scadaguard/local_storage.hpp"
+
+
 #include "scadaguard/scheduler.hpp"
-#include "scadaguard/windows_discovery.hpp"
 #include <condition_variable>
 #include <mutex>
 #include <ranges>

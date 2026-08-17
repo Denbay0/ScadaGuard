@@ -1,4 +1,8 @@
 FROM node:22-alpine AS build
+ARG VITE_SCADAGUARD_WEB_VERSION=0.1.0
+ARG VITE_SCADAGUARD_BUILD=development
+ENV VITE_SCADAGUARD_WEB_VERSION=${VITE_SCADAGUARD_WEB_VERSION} \
+    VITE_SCADAGUARD_BUILD=${VITE_SCADAGUARD_BUILD}
 RUN corepack enable
 WORKDIR /build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

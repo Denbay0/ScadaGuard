@@ -1,4 +1,5 @@
 import { Activity, Bell, Bot, Factory, Gauge, LogOut, Radio, ShieldCheck } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { NavLink, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import { api } from './api'
 import Dashboard from './pages/Dashboard'
@@ -11,6 +12,8 @@ import AgentDiscovery from './pages/AgentDiscovery'
 
 function Shell() {
   const navigate = useNavigate()
+  const health = useQuery({ queryKey: ['health'], queryFn: api.health, staleTime: 60_000 })
+  const webVersion = import.meta.env.VITE_SCADAGUARD_WEB_VERSION ?? 'development'
   const signOut = async () => {
     await api.logout().catch(() => undefined)
     navigate('/login')
@@ -27,6 +30,7 @@ function Shell() {
           <NavLink to="/signals"><Activity />Сигналы</NavLink>
         </nav>
         <div className="connection"><Radio size={16} /><span>Центральный сервер<small>состояние обновляется</small></span></div>
+        <div className="versions" title={health.data?.build}>Web {webVersion}<br />Server {health.data?.version ?? '—'} · DB {health.data?.database_migration_revision ?? '—'}</div>
         <button className="logout" onClick={signOut}><LogOut size={17} />Выйти</button>
       </aside>
       <main className="content"><Outlet /></main>

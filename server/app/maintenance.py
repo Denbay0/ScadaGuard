@@ -22,6 +22,18 @@ from app.models import (
 logger = structlog.get_logger()
 
 
+def heartbeat_is_overdue(
+    last_seen_at: datetime | None,
+    heartbeat_interval_seconds: int,
+    default_offline_threshold_seconds: int,
+    now: datetime,
+) -> bool:
+    if last_seen_at is None:
+        return False
+    threshold = max(default_offline_threshold_seconds, heartbeat_interval_seconds * 3)
+    return last_seen_at < now - timedelta(seconds=threshold)
+
+
 async def reconcile_offline_agents(
     session: AsyncSession, settings: Settings, now: datetime | None = None
 ) -> tuple[int, int]:
@@ -34,8 +46,13 @@ async def reconcile_offline_agents(
             settings.default_offline_threshold_seconds,
             agent.heartbeat_interval_seconds * 3,
         )
-        last_contact = agent.last_seen_at or agent.registered_at
-        is_offline = last_contact < current - timedelta(seconds=threshold)
+        last_contact = agent.last_seen_at
+        is_offline = heartbeat_is_overdue(
+            last_contact,
+            agent.heartbeat_interval_seconds,
+            settings.default_offline_threshold_seconds,
+            current,
+        )
         incident_key = f"agent_offline:{agent.id}"
         incident = await session.scalar(
             select(Incident).where(
@@ -44,6 +61,7 @@ async def reconcile_offline_agents(
             )
         )
         if is_offline:
+            assert last_contact is not None
             agent.current_status = HealthState.offline
             if incident is None:
                 incident = Incident(
@@ -72,7 +90,7 @@ async def reconcile_offline_agents(
                     )
                 )
                 opened += 1
-        elif incident is not None:
+        elif incident is not None and last_contact is not None:
             incident.status = "closed"
             incident.closed_at = current
             incident.last_seen_at = current

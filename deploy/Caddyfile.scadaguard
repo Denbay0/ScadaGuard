@@ -1,0 +1,4 @@
+scada.micom.su {
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    reverse_proxy 127.0.0.1:8320
+}

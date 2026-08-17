@@ -1,5 +1,12 @@
 export type Health = 'ok' | 'warning' | 'critical' | 'offline' | 'unknown'
 
+export interface ServerHealth {
+  status: 'ok'
+  version: string
+  build: string
+  database_migration_revision: string
+}
+
 export interface DashboardSummary {
   sites: { total: number; ok: number; warning: number; critical: number; offline: number }
   active_incidents: number
@@ -169,6 +176,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  health: () => request<ServerHealth>('/health'),
   login: (username: string, password: string) =>
     request<{ username: string; role: string }>('/api/v1/auth/login', {
       method: 'POST',

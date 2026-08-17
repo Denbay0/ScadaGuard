@@ -41,7 +41,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await task
 
 
-app = FastAPI(title="ScadaGuard Server", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="ScadaGuard Server",
+    version=settings.version,
+    lifespan=lifespan,
+    docs_url="/docs" if settings.openapi_enabled else None,
+    redoc_url="/redoc" if settings.openapi_enabled else None,
+    openapi_url="/openapi.json" if settings.openapi_enabled else None,
+)
 app.include_router(admin_router)
 app.include_router(agent_ingest_router)
 app.include_router(auth_router)
@@ -56,4 +63,10 @@ async def health(
     session: Annotated[AsyncSession, Depends(database_session)],
 ) -> dict[str, str]:
     await session.execute(text("SELECT 1"))
-    return {"status": "ok"}
+    revision = await session.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
+    return {
+        "status": "ok",
+        "version": settings.version,
+        "build": settings.build,
+        "database_migration_revision": str(revision or "unknown"),
+    }

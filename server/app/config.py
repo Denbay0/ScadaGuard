@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     default_offline_threshold_seconds: int = Field(default=90, ge=30)
     signal_retention_days: int = Field(default=30, ge=1)
     check_retention_days: int = Field(default=90, ge=1)
+    version: str = "0.1.0"
+    build: str = "development"
+    openapi_enabled: bool = True
 
 
 @lru_cache

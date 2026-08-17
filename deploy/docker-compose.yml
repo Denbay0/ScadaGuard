@@ -1,12 +1,22 @@
 name: scadaguard
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
+    container_name: scadaguard-postgres
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: scadaguard
       POSTGRES_USER: scadaguard
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      PGTZ: UTC
+      TZ: UTC
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -15,18 +25,29 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
+    networks: [scadaguard-internal]
+    logging: *default-logging
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    shm_size: 128m
+    security_opt: [no-new-privileges:true]
 
   server:
+    container_name: scadaguard-server
     build:
-      context: ../server
+      context: ${SCADAGUARD_SOURCE_ROOT:-..}/server
     environment:
-      SCADAGUARD_DATABASE_URL: postgresql+asyncpg://scadaguard:${POSTGRES_PASSWORD}@postgres:5432/scadaguard
+      SCADAGUARD_DATABASE_URL: ${SCADAGUARD_DATABASE_URL:-postgresql+asyncpg://scadaguard:${POSTGRES_PASSWORD}@postgres:5432/scadaguard}
       SCADAGUARD_SECRET_KEY: ${SCADAGUARD_SECRET_KEY:?set SCADAGUARD_SECRET_KEY in .env}
       SCADAGUARD_PUBLIC_URL: ${SCADAGUARD_PUBLIC_URL:-http://localhost:8080}
       SCADAGUARD_MATTERMOST_WEBHOOK_URL: ${SCADAGUARD_MATTERMOST_WEBHOOK_URL:-}
       SCADAGUARD_COOKIE_SECURE: ${SCADAGUARD_COOKIE_SECURE:-false}
       SCADAGUARD_LOG_LEVEL: ${SCADAGUARD_LOG_LEVEL:-INFO}
       SCADAGUARD_DEFAULT_OFFLINE_THRESHOLD_SECONDS: ${SCADAGUARD_DEFAULT_OFFLINE_THRESHOLD_SECONDS:-90}
+      SCADAGUARD_VERSION: ${SCADAGUARD_VERSION:-0.1.0}
+      SCADAGUARD_BUILD: ${SCADAGUARD_BUILD:-production}
+      SCADAGUARD_OPENAPI_ENABLED: ${SCADAGUARD_OPENAPI_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,12 +57,22 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
+    networks: [scadaguard-internal]
+    logging: *default-logging
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 256
+    security_opt: [no-new-privileges:true]
 
   web:
+    container_name: scadaguard-web
     build:
-      context: ../web
+      context: ${SCADAGUARD_SOURCE_ROOT:-..}/web
+      args:
+        VITE_SCADAGUARD_WEB_VERSION: ${SCADAGUARD_VERSION:-0.1.0}
+        VITE_SCADAGUARD_BUILD: ${SCADAGUARD_BUILD:-production}
     ports:
-      - "${SCADAGUARD_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${SCADAGUARD_HTTP_PORT:-8080}:8080"
     depends_on:
       server:
         condition: service_healthy
@@ -51,6 +82,17 @@ services:
       timeout: 5s
       retries: 12
     restart: unless-stopped
+    networks: [scadaguard-internal]
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
 
 volumes:
   postgres-data:
+
+networks:
+  scadaguard-internal:
+    name: scadaguard-internal
+    driver: bridge

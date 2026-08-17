@@ -1,5 +1,7 @@
 # Развёртывание Server и Web
 
+Production-процедуры обновления, rollback, backup и восстановления описаны в [production-update.md](production-update.md).
+
 Скопируйте `deploy/.env.example` в `deploy/.env`, замените оба placeholder-секрета и выполните:
 
 ```powershell
